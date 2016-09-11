@@ -178,7 +178,7 @@ void validate_yolo(char *cfgfile, char *weightfile)
     int nms = 1;
     float iou_thresh = .5;
 
-    int nthreads = 2;
+    int nthreads = 8;
     image *val = calloc(nthreads, sizeof(image));
     image *val_resized = calloc(nthreads, sizeof(image));
     image *buf = calloc(nthreads, sizeof(image));
@@ -328,7 +328,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
     char buff[256];
     char *input = buff;
     int j;
-    float nms=.5;
+    float nms=.4;
     box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
     float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
     for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
@@ -355,7 +355,6 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
         save_image(im, "predictions");
         show_image(im, "predictions");
 
-        show_image(sized, "resized");
         free_image(im);
         free_image(sized);
 #ifdef OPENCV

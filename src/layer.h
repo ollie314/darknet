@@ -67,6 +67,7 @@ struct layer{
     int size;
     int side;
     int stride;
+    int reverse;
     int pad;
     int sqrt;
     int flip;
@@ -94,7 +95,18 @@ struct layer{
     int reorg;
     int log;
 
+    int adam;
+    float B1;
+    float B2;
+    float eps;
+    float *m_gpu;
+    float *v_gpu;
+    int t;
+    float *m;
+    float *v;
+
     tree *softmax_tree;
+    int  *map;
 
     float alpha;
     float beta;
@@ -104,7 +116,10 @@ struct layer{
     float object_scale;
     float noobject_scale;
     float class_scale;
+    int bias_match;
     int random;
+    float thresh;
+    int classfix;
 
     int dontload;
     int dontloadscales;

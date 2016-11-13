@@ -32,21 +32,27 @@ softmax_layer make_softmax_layer(int batch, int inputs, int groups)
     return l;
 }
 
+void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output)
+{
+    int b;
+    for(b = 0; b < batch; ++b){
+        int i;
+        int count = 0;
+        for(i = 0; i < hierarchy->groups; ++i){
+            int group_size = hierarchy->group_size[i];
+            softmax(input+b*inputs + count, group_size, temp, output+b*inputs + count);
+            count += group_size;
+        }
+    }
+}
+
 void forward_softmax_layer(const softmax_layer l, network_state state)
 {
     int b;
     int inputs = l.inputs / l.groups;
     int batch = l.batch * l.groups;
     if(l.softmax_tree){
-        for(b = 0; b < batch; ++b){
-            int i;
-            int count = 0;
-            for(i = 0; i < l.softmax_tree->groups; ++i){
-                int group_size = l.softmax_tree->group_size[i];
-                softmax(state.input+b*inputs + count, group_size, l.temperature, l.output+b*inputs + count);
-                count += group_size;
-            }
-        }
+        softmax_tree(state.input, batch, inputs, l.temperature, l.softmax_tree, l.output);
     } else {
         for(b = 0; b < batch; ++b){
             softmax(state.input+b*inputs, inputs, l.temperature, l.output+b*inputs);
@@ -73,37 +79,16 @@ void forward_softmax_layer_gpu(const softmax_layer l, network_state state)
 {
     int inputs = l.inputs / l.groups;
     int batch = l.batch * l.groups;
-    int b;
     if(l.softmax_tree){
-        if(0){
-            float *buff = calloc(inputs * batch, sizeof(float));
-            cuda_pull_array(state.input, buff, batch * inputs);
-            state.input = buff;
-            forward_softmax_layer(l, state);
-            cuda_push_array(l.output_gpu, l.output, batch*inputs);
-            free(buff);
-        } else {
-            int i;
-            const int nstreams = 32;
-            cudaStream_t streams[nstreams];
-            for (i = 0; i < nstreams; ++i) {
-                cudaStreamCreate(&streams[i]);
-            }
-            for (b = 0; b < batch; ++b) {
-                int i;
-                int count = 0;
-                for (i = 0; i < l.softmax_tree->groups; ++i) {
-                    int group_size = l.softmax_tree->group_size[i];
-                    softmax_gpu(state.input+b*inputs + count, group_size, 1, l.temperature, l.output_gpu+b*inputs + count, streams[(b*l.softmax_tree->groups + i) % nstreams]);
-                    count += group_size;
-                }
-            }
-            for(i = 0; i < nstreams; ++i){
-                cudaStreamDestroy(streams[i]);
-            }
+        int i;
+        int count = 0;
+        for (i = 0; i < l.softmax_tree->groups; ++i) {
+            int group_size = l.softmax_tree->group_size[i];
+            softmax_gpu(state.input+count, group_size, inputs, batch, l.temperature, l.output_gpu + count);
+            count += group_size;
         }
     } else {
-        softmax_gpu(state.input, inputs, batch, l.temperature, l.output_gpu, 0);
+        softmax_gpu(state.input, inputs, inputs, batch, l.temperature, l.output_gpu);
     }
 }
 
